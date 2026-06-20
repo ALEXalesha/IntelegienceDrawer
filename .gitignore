@@ -1,0 +1,27 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build_env/
+
+# ---- Сборка / артефакты PyInstaller и NSIS ----
+build/
+dist/
+release/
+
+# ---- Датасеты и кэши (скачиваются/генерируются скриптами) ----
+# Quick Draw .npy (качает quickdraw.py)
+quickdraw/
+# распакованный HASYv2 и его архив
+hasy/
+hasy.tar.bz2
+# assembled_train/test, hasy_cache
+*.npz
+*.npy
+
+# ---- Обученная модель (генерируется train.py) ----
+# model.pt намеренно НЕ игнорируется — это готовая модель для запуска app.py
+
+# ---- Прочее ----
+.remember/

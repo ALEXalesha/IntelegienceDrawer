@@ -1,0 +1,7 @@
+torch
+numpy
+pillow
+
+# EMNIST data: download once to ~/.cache/emnist/emnist.zip
+#   https://biometrics.nist.gov/cs_links/EMNIST/gzip.zip  (~536 MB)
+# data.py reads the IDX files straight from that zip.
