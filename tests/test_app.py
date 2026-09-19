@@ -19,15 +19,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 @pytest.fixture
-def root():
-    r = tk.Tk()
-    r.withdraw()
-    yield r
-    r.destroy()
-
-
-@pytest.fixture
-def win(root):
+def win(root):          # root - общий скрытый корень Tk из conftest.py
     return app.DrawApp(root)
 
 

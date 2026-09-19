@@ -154,11 +154,12 @@ class DrawApp:
 
     def _predict_sequence(self, groups):
         """Несколько символов рядом: каждый распознаётся отдельно, читаем слева направо."""
-        probs_list = [self._probs(segment.render(g.strokes, CANVAS)) for g in groups]
-        probs_list = [p for p in probs_list if p is not None]
-        if not probs_list:
+        read = [(self._probs(segment.render(g.strokes, CANVAS)), g.height) for g in groups]
+        read = [(p, h) for p, h in read if p is not None]
+        if not read:
             return
-        chosen, confidence, sure = segment.read_sequence(probs_list, self.labels)
+        probs_list = [p for p, _ in read]
+        chosen, confidence, sure = segment.read_sequence(probs_list, self.labels, [h for _, h in read])
         text = segment.join_labels([self.labels[c] for c in chosen])
         if len(text) > MAX_TEXT:
             text = text[:MAX_TEXT - 1] + "…"
@@ -166,10 +167,7 @@ class DrawApp:
         lines = []
         for p, c, s in list(zip(probs_list, chosen, sure))[:MAX_SYMBOLS]:
             line = f"{self.labels[c]}  {s * 100:3.0f}%"
-            # Лучший другой вариант, кроме выбранного и того, из которого он
-            # получился («|» у единицы показывать незачем).
-            skip = {c} | {i for i in range(len(p)) if segment.LOOKALIKES.get(self.labels[i]) == self.labels[c]}
-            alt = max((i for i in range(len(p)) if i not in skip), key=lambda i: p[i])
+            alt = segment.alternative(p, c, self.labels)
             if p[alt] >= 0.02:
                 line += f"   {self.labels[alt]} {p[alt] * 100:.0f}%"
             lines.append(line)

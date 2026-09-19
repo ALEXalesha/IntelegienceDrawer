@@ -28,6 +28,13 @@ def ring(cx, cy, r, w=W, n=24, ry=None):
                       for i in range(n + 1)])
 
 
+def arc(cx, cy, rx, ry, w=W, n=18):
+    """«c»: дуга от 40° до 320°, разрывом вправо."""
+    a0, a1 = math.radians(40), math.radians(320)
+    return Stroke(w, [(cx + rx * math.cos(a0 + (a1 - a0) * i / n), cy + ry * math.sin(a0 + (a1 - a0) * i / n))
+                      for i in range(n + 1)])
+
+
 def dot(x, y, w=W):
     return Stroke(w, [(x, y)])
 
@@ -58,6 +65,15 @@ def test_two_digits_side_by_side_are_two_symbols():
 ])
 def test_multi_stroke_symbols_stay_whole(name, strokes):
     assert len(segment.group_strokes(strokes)) == 1, name
+
+
+def test_thick_strokes_are_measured_by_their_ink():
+    """Толстая кисть: осевые линии двух мазков не перекрываются, а краска -
+    да. Это один символ: границы мазка - это края краски, а не середина."""
+    a, b = dot(100, 200, w=60), dot(130, 260, w=60)
+    assert len(segment.group_strokes([a, b])) == 1
+    thin_a, thin_b = dot(100, 200, w=8), dot(130, 260, w=8)
+    assert len(segment.group_strokes([thin_a, thin_b])) == 2
 
 
 def test_three_spaced_symbols_in_any_drawing_order():
@@ -92,22 +108,17 @@ def test_random_drawings_keep_the_partition_invariants():
                 b.strokes[0].x0 >= a.strokes[-1].x0
 
 
-def test_render_matches_the_window_drawing():
+def test_render_matches_the_window_drawing(root):
     """Картинка группы рисуется так же, как окно рисует на холсте: одиночный
     символ, отрендеренный заново, совпадает с тем, что нарисовал человек."""
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        win = app.DrawApp(root)
-        pts = [(100, 100), (180, 140), (220, 260), (160, 330)]
-        win._press(SimpleNamespace(x=pts[0][0], y=pts[0][1]))
-        for x, y in pts[1:]:
-            win._move(SimpleNamespace(x=x, y=y))
-        win.last = None
-        again = segment.render(win.strokes, app.CANVAS)
-        assert np.array_equal(np.asarray(again), np.asarray(win.image))
-    finally:
-        root.destroy()
+    win = app.DrawApp(root)
+    pts = [(100, 100), (180, 140), (220, 260), (160, 330)]
+    win._press(SimpleNamespace(x=pts[0][0], y=pts[0][1]))
+    for x, y in pts[1:]:
+        win._move(SimpleNamespace(x=x, y=y))
+    win.last = None
+    again = segment.render(win.strokes, app.CANVAS)
+    assert np.array_equal(np.asarray(again), np.asarray(win.image))
 
 
 # ---- чтение строки ---------------------------------------------------------------
@@ -171,22 +182,81 @@ def test_confidence_is_the_product():
     assert 0 <= conf <= 1
 
 
-def test_random_reads_keep_their_invariants():
-    """Любые вероятности: столько же символов, сколько групп; уверенность в
-    [0, 1] и равна произведению; цифры не превращаются в не-цифры; без цифр и
-    «|», «°» ничего не меняется."""
+WORD_LABELS = ["2", "5", "a", "b", "c", "C", "d", "x", "X", "+", "=", "-", "рыба"]
+
+
+def wprobs(**kw):
+    alias = {"two": "2", "five": "5", "plus": "+", "eq": "=", "minus": "-", "fish": "рыба"}
+    p = np.full(len(WORD_LABELS), 1e-4)
+    for k, v in kw.items():
+        p[WORD_LABELS.index(alias.get(k, k))] = v
+    return p / p.sum()
+
+
+def wread(*ps, heights=None):
+    chosen, _, _ = segment.read_sequence(list(ps), WORD_LABELS, heights)
+    return "".join(WORD_LABELS[c] for c in chosen)
+
+
+def test_case_follows_height_next_to_tall_symbols():
+    """c, o, s, u, v, w, x, z: строчная и заглавная - одна форма, нормализация
+    размер стирает. В строке он виден по высоким соседям."""
+    assert wread(wprobs(b=0.9), wprobs(C=0.9), heights=[200, 110]) == "bc"
+    assert wread(wprobs(b=0.9), wprobs(c=0.9), heights=[200, 190]) == "bC"
+    assert wread(wprobs(C=0.9), wprobs(x=0.9), heights=[100, 200]) == "Cx", "без высокого символа регистр не трогаем"
+    assert wread(wprobs(b=0.9), wprobs(C=0.9)) == "bC", "без высот регистр не трогаем"
+    assert wread(wprobs(C=0.9), heights=[50]) == "C", "один символ - сравнить не с чем"
+    assert wread(wprobs(b=0.9), wprobs(d=0.9), wprobs(C=0.9), heights=[200, 120, 110]) == "bdc", \
+        "рост строки - по самому высокому символу"
+
+
+def test_word_context_pulls_a_doubtful_symbol_to_a_letter():
+    """Рукописную «a» сеть часто зовёт «2», а «a» ставит второй."""
+    assert wread(wprobs(two=0.6, a=0.25), wprobs(b=0.9), wprobs(c=0.9), heights=[110, 200, 110]) == "abc"
+    assert wread(wprobs(two=0.6, a=0.05), wprobs(b=0.9), wprobs(c=0.9)) == "2bc", "буква с 5 % не перебивает"
+    assert wread(wprobs(two=0.6, a=0.25), wprobs(five=0.9)) == "25", "число важнее слова"
+    assert wread(wprobs(two=0.6, a=0.25), wprobs(plus=0.9), wprobs(eq=0.9)) == "2+=", "букв меньшинство - не слово"
+    assert wread(wprobs(two=0.6, a=0.25), wprobs(b=0.9), wprobs(plus=0.9)) == "2b+", "одна буква из трёх - не слово"
+
+
+def test_picture_inside_an_inscription_becomes_a_sign():
+    assert wread(wprobs(fish=0.5, plus=0.2), wprobs(eq=0.9), wprobs(minus=0.9)) == "+=-"
+    assert wread(wprobs(fish=0.5, plus=0.05), wprobs(eq=0.9), wprobs(minus=0.9)) == "рыба=-"
+    assert wread(wprobs(fish=0.5, plus=0.2)) == "рыба", "одна картинка остаётся картинкой"
+
+
+def test_alternative_skips_the_source_of_the_choice():
+    p = wprobs(C=0.6, x=0.3)
+    assert WORD_LABELS[segment.alternative(p, WORD_LABELS.index("c"), WORD_LABELS)] == "x", \
+        "у «c», полученной из «C», альтернатива «C» бессмысленна"
+
+
+@pytest.mark.parametrize("labels", [LABELS, WORD_LABELS])
+def test_random_reads_keep_their_invariants(labels):
+    """Любые вероятности и высоты: уверенность - произведение и в [0, 1]; в
+    числе (цифр не меньше половины) цифра остаётся цифрой; символ меняется
+    только на класс, у которого не меньше 10 %, или на свою пару (похожая
+    цифра, другой регистр); один символ не меняется никогда."""
     rng = np.random.default_rng(5)
     for _ in range(2000):
-        ps = [rng.dirichlet(np.full(len(LABELS), 0.3)) for _ in range(rng.integers(1, 6))]
-        chosen, conf, sure = segment.read_sequence(ps, LABELS)
+        n = int(rng.integers(1, 6))
+        ps = [rng.dirichlet(np.full(len(labels), 0.3)) for _ in range(n)]
+        heights = list(rng.integers(20, 300, n)) if rng.random() < 0.5 else None
+        chosen, conf, sure = segment.read_sequence(ps, labels, heights)
         tops = [int(np.argmax(p)) for p in ps]
         assert len(chosen) == len(ps) == len(sure)
         assert 0 <= conf <= 1 + 1e-9 and conf == pytest.approx(float(np.prod(sure)))
         assert all(0 <= s <= 1 + 1e-9 for s in sure)
-        for t, c in zip(tops, chosen):
-            if LABELS[t] in segment.DIGITS:
+        numeric = sum(labels[t] in segment.DIGITS for t in tops) * 2 >= n
+        for p, t, c in zip(ps, tops, chosen):
+            if numeric and labels[t] in segment.DIGITS:
                 assert c == t
-        if not any(LABELS[t] in segment.DIGITS or LABELS[t] in segment.DIGIT_SHAPES for t in tops):
+            if c != t:
+                pair = segment.LOOKALIKES.get(labels[t]) == labels[c] or labels[t].lower() == labels[c].lower()
+                other_case = labels[c].swapcase()
+                via_case = other_case in labels and p[labels.index(other_case)] >= 0.10 - 1e-9
+                assert pair or via_case or p[c] >= 0.10 - 1e-9, (labels[t], labels[c], p[c])
+        if n == 1:
             assert chosen == tops
 
 
@@ -199,12 +269,8 @@ def test_join():
 # ---- окно ------------------------------------------------------------------------
 
 @pytest.fixture
-def win():
-    root = tk.Tk()
-    root.withdraw()
-    w = app.DrawApp(root)
-    yield w
-    root.destroy()
+def win(root):          # общий скрытый корень Tk из conftest.py
+    return app.DrawApp(root)
 
 
 def draw(win, stroke):
@@ -260,12 +326,13 @@ def test_many_symbols_do_not_grow_the_window(win):
     root = win.root
     root.update_idletasks()
     before = (root.winfo_reqwidth(), root.winfo_reqheight())
-    for k in range(12):                      # больше MAX_SYMBOLS
-        x = 20 + k * 40
+    for k in range(16):                      # больше MAX_SYMBOLS и длиннее MAX_TEXT
+        x = 15 + k * 30
         draw(win, line(x, 150, x, 350, w=app.PEN_MIN))
     text = win.guess.cget("text")
     assert text.count("\n") <= 3 + app.MAX_SYMBOLS + 1
-    assert len(text.splitlines()[1].split("   ")[0]) <= app.MAX_TEXT
+    shown = text.splitlines()[1].split("   ")[0]
+    assert len(shown) <= app.MAX_TEXT and shown.endswith("…"), shown
     root.update_idletasks()
     assert (root.winfo_reqwidth(), root.winfo_reqheight()) == before
 
@@ -276,6 +343,8 @@ def test_many_symbols_do_not_grow_the_window(win):
     ("10", [line(130, 130, 130, 370), ring(340, 250, 100)]),          # круглый ноль
     ("11", [line(150, 130, 150, 370), line(350, 130, 350, 370)]),
     ("70", [line(40, 130, 200, 130), line(200, 130, 100, 380), ring(360, 250, 70, ry=120)]),
+    ("101", [line(80, 130, 80, 370), ring(250, 250, 65, ry=120), line(420, 130, 420, 370)]),
+    ("bc", [line(150, 110, 150, 370), ring(205, 305, 55, ry=65), arc(390, 305, 55, 65)]),
 ])
 def test_real_model_reads_numbers(win, expected, strokes):
     """Настоящая модель, числа из раздельных символов. Без разрезания вся
