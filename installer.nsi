@@ -1,12 +1,14 @@
-; NSIS installer for DrawGuess
-; Build: "C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
+﻿; NSIS installer for DrawGuess
+; Build: build.ps1 (или "C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi)
+; Файл обязан быть в UTF-8 с BOM: при "Unicode true" makensis без BOM читает его
+; как ANSI и портит кириллицу (ярлык «Удалить DrawGuess» становился мусором).
 
 Unicode true
 
 !define APP_NAME "DrawGuess"
 !define APP_EXE  "DrawGuess.exe"
 !define PUBLISHER "Alexey"
-!define APP_VERSION "1.0.0"
+!define APP_VERSION "1.0.1"
 
 Name "${APP_NAME}"
 OutFile "release\DrawGuess-Setup.exe"

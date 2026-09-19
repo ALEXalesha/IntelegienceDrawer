@@ -61,6 +61,12 @@ class DrawApp:
         tk.Scale(root, from_=PEN_MIN, to=PEN_MAX, orient="horizontal",
                  variable=self.pen).grid(row=3, column=1, sticky="ew", padx=6)
 
+        # Холст фиксированный (500x500, под него обучена нормализация), и
+        # растягивать окну нечего: при ресайзе появлялись только пустые поля,
+        # а Tk при этом заметно тормозил. Размер окна фиксирован, кнопка
+        # «Развернуть» выключена.
+        root.resizable(False, False)
+
     def _load_model(self):
         path = os.path.join(HERE, "model.pt")
         if not os.path.exists(path):

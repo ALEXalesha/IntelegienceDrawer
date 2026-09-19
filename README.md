@@ -43,7 +43,9 @@ preprocess.normalize()   обрезка по краске → масштаб д�
 ## Структура проекта
 
 ### Приложение
-- **`app.py`** — GUI на Tkinter: холст, кисть, вывод предсказаний.
+- **`app.py`** — GUI на Tkinter: холст, кисть, вывод предсказаний. Окно
+  фиксированного размера: холст всегда 500×500 (под него настроена
+  нормализация), растягивать нечего, поэтому ресайз и «Развернуть» выключены.
 - **`model.py`** — архитектура сети `SketchNet` (PyTorch).
 - **`preprocess.py`** — единая нормализация изображения в формат 28×28.
 
@@ -89,13 +91,35 @@ python app.py
    Скрипт соберёт `assembled_train.npz` / `assembled_test.npz`, обучит сеть
    (10 эпох) и пересохранит `model.pt` + `labels.json`.
 
+## Тесты
+
+```powershell
+build_env\Scripts\python.exe -m pytest tests
+```
+
+`tests/test_app.py` проверяет окно (настоящее, но скрытое): размер фиксирован
+и не меняется даже от самой длинной выдачи догадок; мазок попадает и на холст,
+и в картинку для сети; толщина кисти работает; «Очистить» сбрасывает всё;
+рисунок в другом месте холста даёт сети тот же вход; граница 30 % между
+«Думаю это» и «Не уверен», отсечка ниже 2 % и не больше 8 строк (на подставной
+сети с известными вероятностями); без `model.pt` окно объясняет, что делать.
+Мутационная проверка: 10 внесённых в `app.py` поломок, тесты ловят все 10.
+
 ## Сборка `.exe` (Windows)
 
-```bash
-python make_icon.py                 # иконка
-pyinstaller DrawGuess.spec           # dist/DrawGuess.exe
-makensis installer.nsi               # release/DrawGuess-Setup.exe
+```powershell
+powershell -ExecutionPolicy Bypass -File build.ps1
 ```
+
+Скрипт работает в `build_env` (окружение проекта, не общий Python): ставит
+зависимости, гоняет тесты, собирает `dist/DrawGuess.exe` по `DrawGuess.spec`,
+установщик `release/DrawGuess-Setup.exe` (NSIS) и
+`release/DrawGuess-portable.zip`. Иконка пересоздаётся отдельно:
+`python make_icon.py`.
+
+`installer.nsi` обязан быть в UTF-8 с BOM: при `Unicode true` makensis без BOM
+читает файл как ANSI, и кириллица портится. До версии 1.0.1 BOM не было, и
+ярлык «Удалить DrawGuess» в меню Пуск получал нечитаемое имя.
 
 ## Стек
 
