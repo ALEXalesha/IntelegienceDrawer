@@ -8,7 +8,7 @@ Unicode true
 !define APP_NAME "DrawGuess"
 !define APP_EXE  "DrawGuess.exe"
 !define PUBLISHER "Alexey"
-!define APP_VERSION "1.0.1"
+!define APP_VERSION "1.1.0"
 
 Name "${APP_NAME}"
 OutFile "release\DrawGuess-Setup.exe"

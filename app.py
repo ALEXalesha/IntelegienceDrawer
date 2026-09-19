@@ -7,12 +7,17 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw
 
+import segment
 from model import SketchNet
 from preprocess import normalize
 
 CANVAS = 500          # on-screen drawing area in pixels
 PEN_DEFAULT = 30      # starting stroke width
 PEN_MIN, PEN_MAX = 8, 60
+# Сколько символов строки показывать построчно и сколько знаков в самой строке:
+# панель справа фиксированной ширины (22 знака) и высоты, окно не растягивается.
+MAX_SYMBOLS = 8
+MAX_TEXT = 14
 # When frozen by PyInstaller, bundled data lives under sys._MEIPASS.
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 
@@ -44,6 +49,8 @@ class DrawApp:
         self.image = Image.new("L", (CANVAS, CANVAS), 0)
         self.draw = ImageDraw.Draw(self.image)
         self.last = None
+        # Мазки по отдельности: по ним рисунок режется на символы (segment.py).
+        self.strokes = []
 
         self.canvas.bind("<Button-1>", self._press)
         self.canvas.bind("<B1-Motion>", self._move)
@@ -79,17 +86,25 @@ class DrawApp:
 
     def _press(self, e):
         self.last = (e.x, e.y)
+        w = self.pen.get()
+        self.strokes.append(segment.Stroke(w, [(e.x, e.y)]))
+        # Точка от простого щелчка: без неё у «i», «j», «÷» и «:» пропадали
+        # точки - рисовалось только движение мыши.
+        r = w // 2
+        self.canvas.create_oval(e.x - r, e.y - r, e.x + r, e.y + r, fill="white", outline="white")
+        self.draw.ellipse([e.x - r, e.y - r, e.x + r, e.y + r], fill=255)
 
     def _move(self, e):
         if self.last is None:
-            self.last = (e.x, e.y)
+            self._press(e)
         x, y = e.x, e.y
-        w = self.pen.get()
+        w = self.strokes[-1].width
         self.canvas.create_line(*self.last, x, y, fill="white",
                                 width=w, capstyle=tk.ROUND, smooth=True)
         self.draw.line([self.last, (x, y)], fill=255, width=w)
         r = w // 2
         self.draw.ellipse([x - r, y - r, x + r, y + r], fill=255)
+        self.strokes[-1].points.append((x, y))
         self.last = (x, y)
 
     def _release(self, _):
@@ -99,21 +114,32 @@ class DrawApp:
     def clear(self):
         self.canvas.delete("all")
         self.draw.rectangle([0, 0, CANVAS, CANVAS], fill=0)
+        self.strokes = []
         self.guess.config(text="Нарисуй что-нибудь")
+
+    def _probs(self, img):
+        t = canvas_to_tensor(img)
+        if t is None:
+            return None
+        with torch.no_grad():
+            return torch.softmax(self.net(t), 1)[0].numpy()
 
     def predict(self):
         if self.net is None:
             self.guess.config(text="Нет model.pt.\nСначала: python train.py")
             return
-        t = canvas_to_tensor(self.image)
-        if t is None:
+        groups = segment.group_strokes(self.strokes)
+        if len(groups) > 1:
+            self._predict_sequence(groups)
             return
-        with torch.no_grad():
-            probs = torch.softmax(self.net(t), 1)[0]
-        p, idx = torch.sort(probs, descending=True)
+        probs = self._probs(self.image)
+        if probs is None:
+            return
+        order = np.argsort(-probs)
 
         sure, unsure = [], []
-        for pr, i in zip(p.tolist(), idx.tolist()):
+        for i in order:
+            pr = float(probs[i])
             if pr < 0.02 or len(sure) + len(unsure) >= 8:
                 break
             line = f"{self.labels[i]}   {pr * 100:4.0f}%"
@@ -125,6 +151,32 @@ class DrawApp:
         if unsure:
             blocks.append("Не уверен:\n" + "\n".join(unsure))
         self.guess.config(text="\n\n".join(blocks) if blocks else "Не пойму что это")
+
+    def _predict_sequence(self, groups):
+        """Несколько символов рядом: каждый распознаётся отдельно, читаем слева направо."""
+        probs_list = [self._probs(segment.render(g.strokes, CANVAS)) for g in groups]
+        probs_list = [p for p in probs_list if p is not None]
+        if not probs_list:
+            return
+        chosen, confidence, sure = segment.read_sequence(probs_list, self.labels)
+        text = segment.join_labels([self.labels[c] for c in chosen])
+        if len(text) > MAX_TEXT:
+            text = text[:MAX_TEXT - 1] + "…"
+
+        lines = []
+        for p, c, s in list(zip(probs_list, chosen, sure))[:MAX_SYMBOLS]:
+            line = f"{self.labels[c]}  {s * 100:3.0f}%"
+            # Лучший другой вариант, кроме выбранного и того, из которого он
+            # получился («|» у единицы показывать незачем).
+            skip = {c} | {i for i in range(len(p)) if segment.LOOKALIKES.get(self.labels[i]) == self.labels[c]}
+            alt = max((i for i in range(len(p)) if i not in skip), key=lambda i: p[i])
+            if p[alt] >= 0.02:
+                line += f"   {self.labels[alt]} {p[alt] * 100:.0f}%"
+            lines.append(line)
+        if len(probs_list) > MAX_SYMBOLS:
+            lines.append("…")
+        head = "Думаю это:" if confidence >= 0.30 else "Не уверен:"
+        self.guess.config(text=f"{head}\n{text}   {confidence * 100:.0f}%\n\nПо символам:\n" + "\n".join(lines))
 
 
 if __name__ == "__main__":
