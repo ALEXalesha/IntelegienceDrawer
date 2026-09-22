@@ -1,0 +1,32 @@
+# Проверки на каждый пуш.
+#
+# Раннер windows: окно на tkinter, а сборка идёт в .exe под Windows. Датасеты для этого
+# не нужны - model.pt лежит в репозитории, и тесты работают на нём и на подставной сети.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Проверки
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Зависимости
+        run: pip install -r requirements.txt pytest
+
+      - name: 46 проверок
+        run: python -m pytest tests -q
