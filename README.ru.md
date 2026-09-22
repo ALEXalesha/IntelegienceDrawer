@@ -1,13 +1,18 @@
-# DrawGuess — «Нарисуй, угадаю»
+<div align="center">
 
-Настольное приложение, которое в реальном времени угадывает, что вы рисуете
-мышью. Внутри — свёрточная нейросеть на PyTorch, обученная распознавать цифры,
-буквы, простые фигуры, бытовые объекты и математические знаки.
+# DrawGuess - «Нарисуй, угадаю»
 
-Вы рисуете на чёрном холсте белой кистью — как только отпускаете кнопку мыши,
-сеть выдаёт топ-варианты с вероятностями («Думаю это…», «Не уверен…»).
+**Рисуешь мышью на чёрном холсте - свёрточная сеть на PyTorch говорит, что это. Цифры, буквы, фигуры, бытовые предметы и математические знаки; несколько символов подряд читаются как число или строка.**
 
-![интерфейс: холст слева, подсказки справа]
+[Скачать для Windows](https://github.com/ALEXalesha/IntelegienceDrawer/releases/latest) &nbsp;·&nbsp; [English](README.md)
+
+[![CI](https://github.com/ALEXalesha/IntelegienceDrawer/actions/workflows/ci.yml/badge.svg)](https://github.com/ALEXalesha/IntelegienceDrawer/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ALEXalesha/IntelegienceDrawer?color=16a34a)](https://github.com/ALEXalesha/IntelegienceDrawer/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+<img src="docs/screenshots/window.png" width="820" alt="Окно DrawGuess">
+
+</div>
 
 ## Что распознаёт
 
@@ -181,3 +186,11 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 ## Стек
 
 Python · PyTorch · NumPy · Pillow · Tkinter · PyInstaller · NSIS
+
+Снимок в этом файле делает `tools/make_screenshot.py`: он открывает настоящее окно,
+рисует в нём «10» теми же обработчиками мыши и снимает окно через PrintWindow. Снимок
+области экрана не годится - окно может оказаться позади чужих.
+
+## Лицензия
+
+MIT, файл [LICENSE](LICENSE).
