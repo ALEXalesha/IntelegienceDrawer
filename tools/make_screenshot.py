@@ -29,6 +29,7 @@ from PIL import Image  # noqa: E402
 from app import DrawApp  # noqa: E402
 
 PW_RENDERFULLCONTENT = 2
+DWMWA_EXTENDED_FRAME_BOUNDS = 9
 
 
 class FakeEvent:
@@ -64,12 +65,22 @@ def capture(hwnd, path):
     ctypes.memmove(header, (ctypes.c_int32 * 11)(40, w, -h, 1 | (32 << 16), 0, w * h * 4, 0, 0, 0, 0, 0), 44)
     gdi32.GetDIBits(dc, bmp, 0, h, buf, header, 0)
 
-    Image.frombuffer("RGBA", (w, h), buf, "raw", "BGRA", 0, 1).convert("RGB").save(path)
+    image = Image.frombuffer("RGBA", (w, h), buf, "raw", "BGRA", 0, 1).convert("RGB")
 
     gdi32.DeleteObject(bmp)
     gdi32.DeleteDC(dc)
     user32.ReleaseDC(hwnd, src)
-    return w, h
+
+    # GetWindowRect в Windows 10/11 включает невидимые рамки для растягивания - около
+    # 7 px слева, справа и снизу. PrintWindow рисует их чёрными, и в первом кадре для
+    # README справа и снизу стояли чёрные полосы. Видимую границу окна знает DWM.
+    frame = wintypes.RECT()
+    if not ctypes.windll.dwmapi.DwmGetWindowAttribute(
+            hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, ctypes.byref(frame), ctypes.sizeof(frame)):
+        image = image.crop((frame.left - rect.left, frame.top - rect.top,
+                            frame.right - rect.left, frame.bottom - rect.top))
+    image.save(path)
+    return image.size
 
 
 def main():
