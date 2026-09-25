@@ -8,10 +8,10 @@ Unicode true
 !define APP_NAME "DrawGuess"
 !define APP_EXE  "DrawGuess.exe"
 !define PUBLISHER "Alexey"
-!define APP_VERSION "1.2.0"
+!define APP_VERSION "1.3.0"
 
 Name "${APP_NAME}"
-OutFile "release\DrawGuess-Setup.exe"
+OutFile "release\DrawGuess-${APP_VERSION}-Setup.exe"
 InstallDir "$PROGRAMFILES64\${APP_NAME}"
 InstallDirRegKey HKLM "Software\${APP_NAME}" "InstallDir"
 RequestExecutionLevel admin

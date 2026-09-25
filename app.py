@@ -8,6 +8,7 @@ import torch
 from PIL import Image, ImageDraw
 
 import segment
+import tk_window_state
 from model import SketchNet
 from preprocess import normalize
 
@@ -22,6 +23,12 @@ MAX_TEXT = 14
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 
 
+def window_file():
+    """Где окно помнит своё место: %APPDATA%\\DrawGuess\\window.json (1.3.0)."""
+    base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    return os.path.join(base, "DrawGuess", "window.json")
+
+
 def canvas_to_tensor(img):
     """Drawing (white strokes on black) -> (1, 1, 28, 28) tensor.
     Uses the same normalize() as training so the two never drift apart."""
@@ -33,7 +40,7 @@ def canvas_to_tensor(img):
 
 
 class DrawApp:
-    def __init__(self, root):
+    def __init__(self, root, window_path=None):
         self.root = root
         root.title("Нарисуй - угадаю")
         ico = os.path.join(HERE, "drawguess.ico")
@@ -73,6 +80,18 @@ class DrawApp:
         # а Tk при этом заметно тормозил. Размер окна фиксирован, кнопка
         # «Развернуть» выключена.
         root.resizable(False, False)
+
+        # Окно открывается там, где его закрыли (1.3.0); размер у него постоянный, так
+        # что запоминается только место. Без пути (тесты) - как раньше, где поставит Windows.
+        self.window = None
+        if window_path:
+            self.window = tk_window_state.Remember(root, window_path)
+            root.protocol("WM_DELETE_WINDOW", self.close)
+
+    def close(self):
+        if self.window is not None:
+            self.window.save()
+        self.root.destroy()
 
     def _load_model(self):
         path = os.path.join(HERE, "model.pt")
@@ -179,5 +198,5 @@ class DrawApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    DrawApp(root)
+    DrawApp(root, window_file())
     root.mainloop()

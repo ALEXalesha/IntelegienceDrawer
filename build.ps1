@@ -1,5 +1,5 @@
-# Build: tests -> dist\DrawGuess.exe (PyInstaller, one file) -> release\DrawGuess-Setup.exe (NSIS)
-#        -> release\DrawGuess-portable.zip.
+# Build: tests -> dist\DrawGuess.exe (PyInstaller, one file) -> release\DrawGuess-<version>-Setup.exe (NSIS)
+#        -> release\DrawGuess-<version>-portable.zip. The version is APP_VERSION in installer.nsi.
 # Usage:  powershell -ExecutionPolicy Bypass -File build.ps1   [-SkipTests]
 # ASCII only on purpose: Windows PowerShell 5.1 reads BOM-less .ps1 files as ANSI.
 # Everything runs in the project's own build_env, never in the global Python.
@@ -14,7 +14,7 @@ if (-not (Test-Path $py)) {
     py -3 -m venv "$root\build_env"
     if ($LASTEXITCODE) { throw "venv failed" }
 }
-& $py -m pip install --disable-pip-version-check -q -r "$root\requirements.txt" pyinstaller pytest
+& $py -m pip install --disable-pip-version-check -q -r "$root\requirements.txt" pyinstaller pytest hypothesis
 if ($LASTEXITCODE) { throw "pip install failed" }
 
 if (-not $SkipTests) {
@@ -33,7 +33,8 @@ New-Item -ItemType Directory -Force release | Out-Null
 if ($LASTEXITCODE) { throw "NSIS failed" }
 
 # Portable = the same single exe in a zip.
-$zip = "$root\release\DrawGuess-portable.zip"
+$version = [regex]::Match((Get-Content "$root\installer.nsi" -Raw), 'APP_VERSION "([^"]+)"').Groups[1].Value
+$zip = "$root\release\DrawGuess-$version-portable.zip"
 if (Test-Path $zip) { Remove-Item -Force $zip }
 Compress-Archive -Path "$root\dist\DrawGuess.exe" -DestinationPath $zip
 

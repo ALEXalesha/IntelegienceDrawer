@@ -167,6 +167,14 @@ build_env\Scripts\python.exe -m pytest tests
 Мутационная проверка: 10 поломок в окне и 37 в разрезании и чтении строки
 (включая правила слова, надписи и регистра), тесты ловят все.
 
+`tests/test_window_place.py` и `tests/test_tk_window_state.py` (с 1.3.0): окно
+открывается там, где его закрыли (`%APPDATA%\DrawGuess\window.json`). Размер у окна
+постоянный, поэтому запоминается только место, а размер всегда задают виджеты - цифра из
+файла их не обрежет. Монитор отключили или заголовок не попал бы ни на один экран - окно
+встаёт по центру. Правило выбора места (`tk_window_state.py`) переписано с
+`window-state.js` калькуляторов и Paint Pro; тест сверяет ответы с самим
+`window-state.js` на тысяче случайных входов, когда рядом есть node.
+
 ## Сборка `.exe` (Windows)
 
 ```powershell
@@ -175,8 +183,8 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 Скрипт работает в `build_env` (окружение проекта, не общий Python): ставит
 зависимости, гоняет тесты, собирает `dist/DrawGuess.exe` по `DrawGuess.spec`,
-установщик `release/DrawGuess-Setup.exe` (NSIS) и
-`release/DrawGuess-portable.zip`. Иконка пересоздаётся отдельно:
+установщик `release/DrawGuess-<версия>-Setup.exe` (NSIS) и
+`release/DrawGuess-<версия>-portable.zip`. Иконка пересоздаётся отдельно:
 `python make_icon.py`.
 
 `installer.nsi` обязан быть в UTF-8 с BOM: при `Unicode true` makensis без BOM

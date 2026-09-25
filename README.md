@@ -63,7 +63,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-`model.pt` is in the repository, so nothing has to be trained first. Ready Windows builds - installer and portable - are on the [releases page](https://github.com/ALEXalesha/IntelegienceDrawer/releases/latest); they carry a CPU build of PyTorch, which is why they weigh about 170 MB.
+`model.pt` is in the repository, so nothing has to be trained first. Ready Windows builds - installer and portable - are on the [releases page](https://github.com/ALEXalesha/IntelegienceDrawer/releases/latest); they carry a CPU build of PyTorch, which is why they weigh about 170 MB. The window opens where it was closed (`%APPDATA%\DrawGuess\window.json`); its size is fixed, so only the place is kept.
 
 ## Tests
 
@@ -71,7 +71,7 @@ python app.py
 build_env\Scripts\python.exe -m pytest tests
 ```
 
-46 tests, about 50 seconds.
+64 tests, about 50 seconds.
 
 `test_app.py` drives a real window, kept hidden: the window size never changes, not even under the longest possible list of guesses; a stroke lands both on the canvas and in the image the network sees; the brush width works; "clear" resets everything; the same drawing in a different corner produces the same input; the 30 % boundary between "I think it is" and "not sure", the 2 % cut-off and the limit of 8 lines are checked against a stub network with known probabilities; without `model.pt` the window explains what to do.
 
@@ -91,7 +91,7 @@ Then the tests were checked against deliberate damage: 10 planted bugs in the wi
 powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
-The script works inside `build_env`, the project's own environment rather than the system Python: it installs dependencies, runs the tests, builds `dist/DrawGuess.exe` from `DrawGuess.spec`, then `release/DrawGuess-Setup.exe` (NSIS) and `release/DrawGuess-portable.zip`.
+The script works inside `build_env`, the project's own environment rather than the system Python: it installs dependencies, runs the tests, builds `dist/DrawGuess.exe` from `DrawGuess.spec`, then `release/DrawGuess-<version>-Setup.exe` (NSIS) and `release/DrawGuess-<version>-portable.zip`.
 
 One trap is worth writing down: `installer.nsi` must be UTF-8 **with** a BOM. With `Unicode true` and no BOM, makensis reads the file as ANSI and the Russian text turns to mojibake. Before 1.0.1 there was no BOM, and the "uninstall DrawGuess" shortcut in the Start menu had an unreadable name.
 
