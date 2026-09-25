@@ -63,7 +63,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-`model.pt` is in the repository, so nothing has to be trained first. Ready Windows builds - installer and portable - are on the [releases page](https://github.com/ALEXalesha/IntelegienceDrawer/releases/latest); they carry a CPU build of PyTorch, which is why they weigh about 170 MB. The window opens where it was closed (`%APPDATA%\DrawGuess\window.json`); its size is fixed, so only the place is kept.
+`model.pt` is in the repository, so nothing has to be trained first. Ready Windows builds - installer and portable - are on the [releases page](https://github.com/ALEXalesha/IntelegienceDrawer/releases/latest); they carry a CPU build of PyTorch, which is why they weigh about 170 MB. Since 1.3.1 the installer is per user (`%LOCALAPPDATA%\Programs\DrawGuess`) and asks for no admin rights. The window opens where it was closed (`%APPDATA%\DrawGuess\window.json`); its size is fixed, so only the place is kept.
 
 ## Tests
 
